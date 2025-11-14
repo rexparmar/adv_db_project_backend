@@ -5,7 +5,7 @@ exports.getNearbyPlaces = async (req, res) => {
   const { type = "restaurant", maxTime = 5 } = req.query;
 
   try {
-    // 1. Get saved home address
+    // 1️⃣ Get saved home address
     const [home] = await new Promise((resolve, reject) => {
       db.query(`SELECT * FROM home_address WHERE id = 1`, (err, rows) => {
         if (err) reject(err);
@@ -19,56 +19,48 @@ exports.getNearbyPlaces = async (req, res) => {
 
     const { latitude, longitude } = home;
 
-    // 2. Places Nearby Search
+    // 2️⃣ Fetch nearby places from Google
     const placesRes = await axios.get(
-  "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
-  {
-    params: {
-      location: `${latitude},${longitude}`,
-      radius: 3000,
-      type: type,  
-      key: process.env.GOOGLE_API_KEY,
-    },
-  }
-);
-
-
-    console.log("Places API:", placesRes.data);
-
-    const candidates = placesRes.data.results.slice(0, 10);
-
-    // If no places found
-    if (!candidates.length) {
-      return res.status(404).json({ message: "No places found nearby" });
-    }
-
-    // 3. Distance Matrix (time filter)
-    const destinations = candidates.map(
-      (p) => `${p.geometry.location.lat},${p.geometry.location.lng}`
-    );
-
-    const dmRes = await axios.get(
-      "https://maps.googleapis.com/maps/api/distancematrix/json",
+      "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
       {
         params: {
-          origins: `${latitude},${longitude}`,
-          destinations: destinations.join("|"),
-          mode: "driving",
+          location: `${latitude},${longitude}`,
+          radius: 3000,
+          type,
           key: process.env.GOOGLE_API_KEY,
         },
       }
     );
 
-    console.log("Distance Matrix:", dmRes.data);
+    const places = placesRes.data.results;
 
-    const filtered = candidates.filter((place, i) => {
-      const durationSec = dmRes.data.rows[0].elements[i].duration.value;
-      return durationSec <= maxTime * 60;
-    });
+    if (!places.length) {
+      return res.status(404).json({ message: "No places found" });
+    }
 
-    res.json(filtered);
+    // 3️⃣ Save each place to the locations table
+    for (const place of places) {
+      const { name, vicinity, geometry } = place;
+
+      db.query(
+        `INSERT INTO locations (name, address, latitude, longitude)
+         VALUES (?, ?, ?, ?)`,
+        [
+          name,
+          vicinity || "",
+          geometry.location.lat,
+          geometry.location.lng,
+        ],
+        (err) => {
+          if (err) console.error("DB insert error:", err);
+        }
+      );
+    }
+
+    // 4️⃣ Return the response to frontend
+    res.json(places);
   } catch (error) {
-    console.log("Nearby error:", error.response?.data || error.message);
+    console.error("Nearby error:", error.message);
     res.status(500).json({ error: error.message });
   }
 };
