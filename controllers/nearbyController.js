@@ -21,16 +21,17 @@ exports.getNearbyPlaces = async (req, res) => {
 
     // 2. Places Nearby Search
     const placesRes = await axios.get(
-      "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
-      {
-        params: {
-          location: `${latitude},${longitude}`,
-          radius: 3000,
-          type,
-          key: process.env.GOOGLE_API_KEY,
-        },
-      }
-    );
+  "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+  {
+    params: {
+      location: `${latitude},${longitude}`,
+      radius: 3000,
+      type: type,  
+      key: process.env.GOOGLE_API_KEY,
+    },
+  }
+);
+
 
     console.log("Places API:", placesRes.data);
 
