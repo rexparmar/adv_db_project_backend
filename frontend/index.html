@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Nearby Explorer</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #cfedfe;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      width: 90%;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    input, select, button {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      padding: 10px 16px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #map {
+      width: 100%;
+      height: 500px;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+    #radiusInput {
+      width: 140px;  
+      font-size: 16px;
+      padding: 12px;
+    }
+
+  </style>
+
+</head>
+<body>
+
+<div class="container">
+  <h2>Nearby Explorer</h2>
+
+<!-- Address Input + Current Location -->
+<div class="controls">
+  <input type="text" id="addressInput" placeholder="Enter Address (Optional)">
+  <button onclick="saveAddress()">Set Home</button>
+  <button onclick="useCurrentLocation()">Use Current Location</button>
+</div>
+
+
+  <!-- Nearby Search Filters -->
+  <div class="controls">
+    <select id="typeInput">
+      <option value="restaurant">Restaurant</option>
+      <option value="school">School</option>
+      <option value="university">University</option>
+      <option value="cafe">Cafe</option>
+      <option value="bar">Club / Bar</option>
+      <option value="gym">Gym</option>
+      <option value="hospital">Hospital</option>
+      <option value="bank">Bank</option>
+      <option value="gas_station">Gas Station</option>
+      <option value="library">Library</option>
+    </select>
+
+    <input type="number" id="radiusInput" placeholder="Radius in meters (e.g., 3000)" min="100" max="50000">
+
+    <button onclick="searchNearby()">Search Nearby</button>
+  </div>
+
+  <!-- Google Map -->
+  <div id="map"></div>
+</div>
+
+<script>
+  let homeMarker = null;
+
+  let map;
+  let markers = [];
+
+  // Initialize Map
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 45.4215, lng: -75.6972 }, // default Ottawa
+      zoom: 13,
+    });
+  }
+
+  // --------------------------
+  // SAVE HOME ADDRESS
+  // --------------------------
+  async function saveAddress() {
+  const address = document.getElementById("addressInput").value;
+
+  if (!address) {
+    return alert("Please enter an address.");
+  }
+
+  const response = await fetch("http://localhost:5000/api/address/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address }),
+  });
+
+  const data = await response.json();
+
+ if (data.latitude && data.longitude) {
+  const lat = data.latitude;
+  const lng = data.longitude;
+  map.setCenter({ lat, lng });
+  map.setZoom(15);
+
+  if (homeMarker) {
+    homeMarker.setPosition({ lat, lng });
+  } else {
+    homeMarker = new google.maps.Marker({
+      position: { lat, lng },
+      map,
+      title: "Saved Home Address",
+      icon: { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" },
+    });
+  }
+
+  alert("Home address saved!");
+} else {
+  alert("Error: " + (data.message || data.error || "Could not save address."));
+}
+
+}
+
+
+ async function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    return alert("Geolocation is not supported by your browser.");
+  }
+
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+
+    // Center map immediately
+    map.setCenter({ lat, lng });
+    map.setZoom(15);
+
+    // 🟢 Add or move marker
+    if (homeMarker) {
+      homeMarker.setPosition({ lat, lng });
+    } else {
+      homeMarker = new google.maps.Marker({
+        position: { lat, lng },
+        map,
+        title: "Your Current Location",
+        icon: {
+          url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png", // Blue marker
+        },
+      });
+    }
+
+    // Save to backend
+    const response = await fetch("http://localhost:5000/api/address/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address: "Current Location",
+        latitude: lat,
+        longitude: lng,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.latitude && data.longitude) {
+      alert("Your current location is saved as home!");
+    } else {
+      alert("Could not save current location.");
+    }
+  }, () => {
+    alert("Location permission denied.");
+  });
+}
+
+
+
+  // --------------------------
+  // SEARCH NEARBY PLACES
+  // --------------------------
+  async function searchNearby() {
+    const type = document.getElementById("typeInput").value;
+    const radius = document.getElementById("radiusInput").value;
+
+    if (!radius) {
+      return showToast("Please enter a radius in meters.");
+    }
+
+    const url = `http://localhost:5000/api/nearby?type=${type}&radius=${radius}`;
+
+    const response = await fetch(url);
+    const places = await response.json();
+
+    if (!Array.isArray(places)) {
+      showToast("No places found.");
+      return;
+    }
+
+    // Clear old markers
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+
+    // Add new markers
+    places.forEach(place => {
+      const marker = new google.maps.Marker({
+        position: {
+          lat: place.geometry.location.lat,
+          lng: place.geometry.location.lng,
+        },
+        map,
+        title: place.name,
+      });
+
+      markers.push(marker);
+    });
+      
+
+    alert("Nearby places loaded!");
+  }
+</script>
+
+<!-- Google Maps API -->
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA62PbzrRnBwqnE5UQCMEm_U-RKspaV2hk&callback=initMap">
+</script>
+
+</body>
+</html>

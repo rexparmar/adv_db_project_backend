@@ -2,7 +2,8 @@ const db = require("../db/db");
 const axios = require("axios");
 
 exports.getNearbyPlaces = async (req, res) => {
-  const { type = "restaurant", maxTime = 5 } = req.query;
+  // frontend sends ?type=school&radius=5000
+  const { type = "restaurant", radius = 3000 } = req.query;
 
   try {
     // 1️⃣ Get saved home address
@@ -25,7 +26,7 @@ exports.getNearbyPlaces = async (req, res) => {
       {
         params: {
           location: `${latitude},${longitude}`,
-          radius: 3000,
+          radius: radius, // ✅ use user input from frontend
           type,
           key: process.env.GOOGLE_API_KEY,
         },
