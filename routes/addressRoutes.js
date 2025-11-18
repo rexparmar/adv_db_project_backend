@@ -3,7 +3,7 @@ const router = express.Router();
 const { saveHomeAddress, getHomeAddress } = require("../controllers/addressController");
 
 router.post("/save", saveHomeAddress);
-router.get("/", getHomeAddress);
+router.get("/getHome", getHomeAddress);
 
 module.exports = router;
     
