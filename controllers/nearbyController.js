@@ -6,7 +6,7 @@ exports.getNearbyPlaces = async (req, res) => {
   const { type = "restaurant", radius = 3000 } = req.query;
 
   try {
-    // 1️⃣ Get saved home address
+    // 1️. Get saved home address
     const [home] = await new Promise((resolve, reject) => {
       db.query(`SELECT * FROM home_address WHERE id = 1`, (err, rows) => {
         if (err) reject(err);
@@ -20,13 +20,13 @@ exports.getNearbyPlaces = async (req, res) => {
 
     const { latitude, longitude } = home;
 
-    // 2️⃣ Fetch nearby places from Google
+    // 2️. Fetch nearby places from Google
     const placesRes = await axios.get(
       "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
       {
         params: {
           location: `${latitude},${longitude}`,
-          radius: radius, // ✅ use user input from frontend
+          radius: radius, //use user input from frontend
           type,
           key: process.env.GOOGLE_API_KEY,
         },
@@ -39,7 +39,7 @@ exports.getNearbyPlaces = async (req, res) => {
       return res.status(404).json({ message: "No places found" });
     }
 
-    // 3️⃣ Save each place to the locations table
+    // 3️. Save each place to the locations table
     for (const place of places) {
       const { name, vicinity, geometry } = place;
 
@@ -58,7 +58,7 @@ exports.getNearbyPlaces = async (req, res) => {
       );
     }
 
-    // 4️⃣ Return the response to frontend
+    // 4️. Return the response to frontend
     res.json(places);
   } catch (error) {
     console.error("Nearby error:", error.message);

@@ -9,13 +9,13 @@ exports.saveHomeAddress = async (req, res) => {
     let lat, lng;
     let finalAddress = address;
 
-    // 🟢 CASE 1: If frontend provided latitude and longitude directly
+    // CASE 1: If frontend provided latitude and longitude directly
     if (latitude && longitude) {
       lat = latitude;
       lng = longitude;
       finalAddress = address || "Current Location";
     }
-    // 🟢 CASE 2: If only address is provided → use Google Geocoding API
+    // CASE 2: If only address is provided → use Google Geocoding API
     else if (address) {
       const geoRes = await axios.get(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.GOOGLE_API_KEY}`
@@ -33,7 +33,7 @@ exports.saveHomeAddress = async (req, res) => {
       return res.status(400).json({ message: "No address or coordinates provided" });
     }
 
-    // ✅ Save in MySQL (overwrite existing)
+    // Save in MySQL (overwrite existing)
     db.query(
       `REPLACE INTO home_address (id, address, latitude, longitude) VALUES (1, ?, ?, ?)`,
       [finalAddress, lat, lng],

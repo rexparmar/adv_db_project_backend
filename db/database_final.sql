@@ -71,47 +71,4 @@ CREATE TABLE home_address (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Queries that might be useful for the backend team
-
--- Insert from API
-	-- INSERT INTO locations (name, address, latitude, longitude)
-	-- VALUES (?, ?, ?, ?);
-    
-    
--- Fetch all locations
-	-- SELECT id, name, address, latitude, longitude
-	-- FROM locations;
-    
-    
--- Find Nearby Locations
-	/* 
-	SELECT 
-	  id, name, address, latitude, longitude,
-	  (
-		6371 * 2 * ASIN(
-		  SQRT(
-			POWER(SIN(RADIANS(latitude - :lat) / 2), 2) +
-			COS(RADIANS(:lat)) * COS(RADIANS(latitude)) *
-			POWER(SIN(RADIANS(longitude - :lng) / 2), 2)
-		  )
-		)
-	  ) AS distance_km
-	FROM locations
-	HAVING distance_km <= :radius
-	ORDER BY distance_km;
-	*/
-
-
--- (Optional) Spatial Index, should make things faster. Tell me if you want to keep it, I'll change the 'near by location'
-	/*
-		ALTER TABLE locations 
-		ADD COLUMN location POINT NULL;
-		UPDATE locations 
-		SET location = POINT(longitude, latitude);
-		ALTER TABLE locations
-		MODIFY location POINT NOT NULL;
-		ALTER TABLE locations
-		ADD SPATIAL INDEX idx_location_spatial (location);
-	*/
-
 
